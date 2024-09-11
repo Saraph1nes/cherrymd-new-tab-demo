@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo</title>
+    <script src="./dist/cherry-markdown.min.js"></script>
+    <link rel="stylesheet" href="./dist/cherry-markdown.min.css">
+</head>
+<body>
+    <script>
+        if (/new/.test(document.location.search)) {
+            let num = parseInt(window.localStorage.getItem('count'), 10) + 1;
+            title = 'No.' + num + ' - Preview Tab';
+            window.localStorage.setItem('count', num);
+            document.title = title;
+        } else {
+            title = 'Cross Tabs Communication';
+            window.localStorage.setItem('count', 1);
+        }
+    </script>
+    <div id="markdown-container"></div> 
+</body>
+<script>
+    let childWins = []; 
+
+    var customMenuA = Cherry.createMenuHook('开启新预览tab',  {
+        iconName: '',
+        onClick: () => {
+           const win = window.open('./?new=1')
+           childWins.push(win);
+        }
+    });
+
+    const previewTab = /new/.test(document.location.search);
+
+    window.addEventListener("message", (event) => {
+        const data = event.data;
+        var origin= event.origin;
+        console.log('[Cross-document Messaging] receive message:',cherryIns, data);
+        cherryIns.editor.setValue(data)
+    }) ;
+
+    const cherryIns = new Cherry({
+        id: 'markdown-container', 
+        value: '', 
+        event: {
+            afterChange: (value) => {
+                // release reference when window closed
+                childWins = childWins.filter(w => !w.closed);
+                if (childWins.length > 0) {
+                    console.log('[Cross-document Messaging] send message to child window', value);
+                    childWins.forEach(w => w.postMessage(value));
+                }
+            }
+        },
+        editor: {
+            defaultModel: previewTab ?  'previewOnly' :  'editOnly'
+        },
+        toolbars: {
+            toolbar: [
+                'bold',
+                'italic',
+                'size',
+                '|',
+                'color',
+                'header',
+                'customMenuAName'
+            ],
+            customMenu: {
+                customMenuAName: customMenuA
+            }
+        }
+    });
+</script>
+</html>
